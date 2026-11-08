@@ -1,0 +1,13 @@
+# Compilación
+build/
+*.elf
+*.bin
+*.o
+*.map
+.DS_Store
+
+# Entornos virtuales
+.venv*/
+
+# Editor (si no compartes configuración útil)
+.vscode/
