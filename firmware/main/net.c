@@ -88,6 +88,9 @@ void net_start(void) {
   wifi_config_t wc = { 0 };
   strlcpy((char *)wc.sta.ssid, WIFI_SSID, sizeof wc.sta.ssid);
   strlcpy((char *)wc.sta.password, WIFI_PASS, sizeof wc.sta.password);
+  wc.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+  wc.sta.pmf_cfg.capable = true;
+  wc.sta.pmf_cfg.required = false;
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
   ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wc));
 
@@ -103,4 +106,5 @@ void net_start(void) {
   esp_mqtt_client_register_event(mqtt, ESP_EVENT_ANY_ID, on_mqtt, NULL);
 
   ESP_ERROR_CHECK(esp_wifi_start());
+  ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
 }

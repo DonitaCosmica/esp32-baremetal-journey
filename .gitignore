@@ -11,7 +11,8 @@ build/
 
 # Editor (si no compartes configuración útil)
 .vscode/
+node_modules
+package-lock.json
 
-/frontend
-/backend
 /broker/data
+/backend/dist
