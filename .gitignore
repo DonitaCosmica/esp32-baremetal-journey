@@ -12,4 +12,6 @@ build/
 # Editor (si no compartes configuración útil)
 .vscode/
 
-frontend/
+/frontend
+/backend
+/broker/data
