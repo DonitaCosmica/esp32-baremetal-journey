@@ -97,6 +97,7 @@ void net_start(void) {
   esp_mqtt_client_config_t mc = {
     .broker.address.uri = MQTT_URI,
     .credentials.client_id = "s3-led",
+    .session.keepalive = 30,
     .session.last_will = {
       .topic = TOPIC_STATUS, .msg = "offline", .qos = 1, .retain = 1,
     },

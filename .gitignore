@@ -15,4 +15,10 @@ node_modules
 package-lock.json
 
 /broker/data
-/backend/dist
+
+/backend/src/config.ts
+/backend/src/types.ts
+/backend/src/deviceStore.ts
+/backend/src/mqttService.ts
+/backend/src/sse.ts
+/backend/src/http.ts
