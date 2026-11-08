@@ -18,6 +18,7 @@ static esp_mqtt_client_handle_t mqtt;
 static volatile bool mqtt_ok = false;
 static volatile bool mqtt_started = false;
 static volatile int last_led = -1; // último estado, para republicar al reconectar
+static int retry_ms = 1000;
 
 static void publish_led(int on) {
   char buf[64];
@@ -28,12 +29,16 @@ static void publish_led(int on) {
 }
 
 static void on_wifi(void *arg, esp_event_base_t base, int32_t id, void *data) {
-  if(base == WIFI_EVENT && id == WIFI_EVENT_STA_START) esp_wifi_connect();
-  else if(base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
+  if(base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
+    esp_wifi_connect();
+  } else if(base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
     wifi_event_sta_disconnected_t *d = (wifi_event_sta_disconnected_t *)data;
     ESP_LOGW(TAG, "Wi-Fi desconectado, motivo=%d", d->reason);
+    vTaskDelay(pdMS_TO_TICKS(retry_ms));
+    if(retry_ms < 8000) retry_ms *= 2;
     esp_wifi_connect();
   } else if(base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
+    retry_ms = 1000;
     ip_event_got_ip_t *e = (ip_event_got_ip_t *)data;
     ESP_LOGI(TAG, "IP asignada: " IPSTR, IP2STR(&e->ip_info.ip));
     if(!mqtt_started) {
@@ -88,9 +93,9 @@ void net_start(void) {
   wifi_config_t wc = { 0 };
   strlcpy((char *)wc.sta.ssid, WIFI_SSID, sizeof wc.sta.ssid);
   strlcpy((char *)wc.sta.password, WIFI_PASS, sizeof wc.sta.password);
-  wc.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
   wc.sta.pmf_cfg.capable = true;
   wc.sta.pmf_cfg.required = false;
+  wc.sta.sae_pwe_h2e = WPA3_SAE_PWE_BOTH;
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
   ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wc));
 

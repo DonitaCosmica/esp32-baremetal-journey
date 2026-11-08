@@ -859,19 +859,19 @@ var require_event_target_shim = __commonJS({
       return x !== null && typeof x === "object";
     }
     function getListeners(eventTarget) {
-      const listeners = listenersMap.get(eventTarget);
-      if (listeners == null) {
+      const listeners2 = listenersMap.get(eventTarget);
+      if (listeners2 == null) {
         throw new TypeError(
           "'this' is expected an EventTarget object, but got another value."
         );
       }
-      return listeners;
+      return listeners2;
     }
     function defineEventAttributeDescriptor(eventName) {
       return {
         get() {
-          const listeners = getListeners(this);
-          let node = listeners.get(eventName);
+          const listeners2 = getListeners(this);
+          let node = listeners2.get(eventName);
           while (node != null) {
             if (node.listenerType === ATTRIBUTE) {
               return node.listener;
@@ -880,37 +880,37 @@ var require_event_target_shim = __commonJS({
           }
           return null;
         },
-        set(listener) {
-          if (typeof listener !== "function" && !isObject(listener)) {
-            listener = null;
+        set(listener2) {
+          if (typeof listener2 !== "function" && !isObject(listener2)) {
+            listener2 = null;
           }
-          const listeners = getListeners(this);
+          const listeners2 = getListeners(this);
           let prev = null;
-          let node = listeners.get(eventName);
+          let node = listeners2.get(eventName);
           while (node != null) {
             if (node.listenerType === ATTRIBUTE) {
               if (prev !== null) {
                 prev.next = node.next;
               } else if (node.next !== null) {
-                listeners.set(eventName, node.next);
+                listeners2.set(eventName, node.next);
               } else {
-                listeners.delete(eventName);
+                listeners2.delete(eventName);
               }
             } else {
               prev = node;
             }
             node = node.next;
           }
-          if (listener !== null) {
+          if (listener2 !== null) {
             const newNode = {
-              listener,
+              listener: listener2,
               listenerType: ATTRIBUTE,
               passive: false,
               once: false,
               next: null
             };
             if (prev === null) {
-              listeners.set(eventName, newNode);
+              listeners2.set(eventName, newNode);
             } else {
               prev.next = newNode;
             }
@@ -968,32 +968,32 @@ var require_event_target_shim = __commonJS({
        * @param {boolean|{capture?:boolean,passive?:boolean,once?:boolean}} [options] The options for this listener.
        * @returns {void}
        */
-      addEventListener(eventName, listener, options) {
-        if (listener == null) {
+      addEventListener(eventName, listener2, options) {
+        if (listener2 == null) {
           return;
         }
-        if (typeof listener !== "function" && !isObject(listener)) {
+        if (typeof listener2 !== "function" && !isObject(listener2)) {
           throw new TypeError("'listener' should be a function or an object.");
         }
-        const listeners = getListeners(this);
+        const listeners2 = getListeners(this);
         const optionsIsObj = isObject(options);
         const capture = optionsIsObj ? Boolean(options.capture) : Boolean(options);
         const listenerType = capture ? CAPTURE : BUBBLE;
         const newNode = {
-          listener,
+          listener: listener2,
           listenerType,
           passive: optionsIsObj && Boolean(options.passive),
           once: optionsIsObj && Boolean(options.once),
           next: null
         };
-        let node = listeners.get(eventName);
+        let node = listeners2.get(eventName);
         if (node === void 0) {
-          listeners.set(eventName, newNode);
+          listeners2.set(eventName, newNode);
           return;
         }
         let prev = null;
         while (node != null) {
-          if (node.listener === listener && node.listenerType === listenerType) {
+          if (node.listener === listener2 && node.listenerType === listenerType) {
             return;
           }
           prev = node;
@@ -1008,23 +1008,23 @@ var require_event_target_shim = __commonJS({
        * @param {boolean|{capture?:boolean,passive?:boolean,once?:boolean}} [options] The options for this listener.
        * @returns {void}
        */
-      removeEventListener(eventName, listener, options) {
-        if (listener == null) {
+      removeEventListener(eventName, listener2, options) {
+        if (listener2 == null) {
           return;
         }
-        const listeners = getListeners(this);
+        const listeners2 = getListeners(this);
         const capture = isObject(options) ? Boolean(options.capture) : Boolean(options);
         const listenerType = capture ? CAPTURE : BUBBLE;
         let prev = null;
-        let node = listeners.get(eventName);
+        let node = listeners2.get(eventName);
         while (node != null) {
-          if (node.listener === listener && node.listenerType === listenerType) {
+          if (node.listener === listener2 && node.listenerType === listenerType) {
             if (prev !== null) {
               prev.next = node.next;
             } else if (node.next !== null) {
-              listeners.set(eventName, node.next);
+              listeners2.set(eventName, node.next);
             } else {
-              listeners.delete(eventName);
+              listeners2.delete(eventName);
             }
             return;
           }
@@ -1041,9 +1041,9 @@ var require_event_target_shim = __commonJS({
         if (event == null || typeof event.type !== "string") {
           throw new TypeError('"event.type" should be a string.');
         }
-        const listeners = getListeners(this);
+        const listeners2 = getListeners(this);
         const eventName = event.type;
-        let node = listeners.get(eventName);
+        let node = listeners2.get(eventName);
         if (node == null) {
           return true;
         }
@@ -1054,9 +1054,9 @@ var require_event_target_shim = __commonJS({
             if (prev !== null) {
               prev.next = node.next;
             } else if (node.next !== null) {
-              listeners.set(eventName, node.next);
+              listeners2.set(eventName, node.next);
             } else {
-              listeners.delete(eventName);
+              listeners2.delete(eventName);
             }
           } else {
             prev = node;
@@ -1284,23 +1284,23 @@ var require_util = __commonJS({
       deprecate(fn, message) {
         return fn;
       },
-      addAbortListener: require("events").addAbortListener || function addAbortListener(signal, listener) {
+      addAbortListener: require("events").addAbortListener || function addAbortListener(signal, listener2) {
         if (signal === void 0) {
           throw new ERR_INVALID_ARG_TYPE("signal", "AbortSignal", signal);
         }
         validateAbortSignal(signal, "signal");
-        validateFunction(listener, "listener");
+        validateFunction(listener2, "listener");
         let removeEventListener;
         if (signal.aborted) {
-          queueMicrotask(() => listener());
+          queueMicrotask(() => listener2());
         } else {
-          signal.addEventListener("abort", listener, {
+          signal.addEventListener("abort", listener2, {
             __proto__: null,
             once: true,
             [kResistStopPropagation]: true
           });
           removeEventListener = () => {
-            signal.removeEventListener("abort", listener);
+            signal.removeEventListener("abort", listener2);
           };
         }
         return {
@@ -3020,10 +3020,10 @@ var require_from = __commonJS({
         // TODO(ronag): What options should be allowed?
         ...opts
       });
-      let reading = false;
+      let reading2 = false;
       readable._read = function() {
-        if (!reading) {
-          reading = true;
+        if (!reading2) {
+          reading2 = true;
           next();
         }
       };
@@ -3059,12 +3059,12 @@ var require_from = __commonJS({
             } else {
               const res = value && typeof value.then === "function" ? await value : value;
               if (res === null) {
-                reading = false;
+                reading2 = false;
                 throw new ERR_STREAM_NULL_VALUES();
               } else if (readable.push(res)) {
                 continue;
               } else {
-                reading = false;
+                reading2 = false;
               }
             }
           } catch (err) {
@@ -4749,12 +4749,12 @@ var require_duplexify = __commonJS({
         });
       }
       if (typeof body === "function") {
-        const { value, write, final, destroy } = fromAsyncGen(body);
+        const { value, write: write2, final, destroy } = fromAsyncGen(body);
         if (isIterable(value)) {
           return from(Duplexify, value, {
             // TODO (ronag): highWaterMark?
             objectMode: true,
-            write,
+            write: write2,
             final,
             destroy
           });
@@ -4778,7 +4778,7 @@ var require_duplexify = __commonJS({
             // TODO (ronag): highWaterMark?
             objectMode: true,
             readable: false,
-            write,
+            write: write2,
             final(cb) {
               final(async () => {
                 try {
@@ -5288,7 +5288,7 @@ var require_pipeline = __commonJS({
     var PassThrough;
     var Readable;
     var addAbortListener;
-    function destroyer(stream, reading, writing) {
+    function destroyer(stream, reading2, writing) {
       let finished = false;
       stream.on("close", () => {
         finished = true;
@@ -5296,7 +5296,7 @@ var require_pipeline = __commonJS({
       const cleanup = eos(
         stream,
         {
-          readable: reading,
+          readable: reading2,
           writable: writing
         },
         (err) => {
@@ -5464,9 +5464,9 @@ var require_pipeline = __commonJS({
       let ret;
       for (let i = 0; i < streams.length; i++) {
         const stream = streams[i];
-        const reading = i < streams.length - 1;
+        const reading2 = i < streams.length - 1;
         const writing = i > 0;
-        const end = reading || (opts === null || opts === void 0 ? void 0 : opts.end) !== false;
+        const end = reading2 || (opts === null || opts === void 0 ? void 0 : opts.end) !== false;
         const isLastStream = i === streams.length - 1;
         if (isNodeStream(stream)) {
           let onError2 = function(err) {
@@ -5476,7 +5476,7 @@ var require_pipeline = __commonJS({
           };
           var onError = onError2;
           if (end) {
-            const { destroy, cleanup } = destroyer(stream, reading, writing);
+            const { destroy, cleanup } = destroyer(stream, reading2, writing);
             destroys.push(destroy);
             if (isReadable(stream) && isLastStream) {
               lastStreamCleanup.push(cleanup);
@@ -5512,7 +5512,7 @@ var require_pipeline = __commonJS({
           ret = stream(ret, {
             signal
           });
-          if (reading) {
+          if (reading2) {
             if (!isIterable(ret, true)) {
               throw new ERR_INVALID_RETURN_VALUE("AsyncIterable", `transform[${i - 1}]`, ret);
             }
@@ -8699,7 +8699,7 @@ var require_writeToStream = __commonJS({
         case "pubcomp":
           return confirmation(packet, stream, opts);
         case "subscribe":
-          return subscribe(packet, stream, opts);
+          return subscribe2(packet, stream, opts);
         case "suback":
           return suback(packet, stream, opts);
         case "unsubscribe":
@@ -8984,7 +8984,7 @@ var require_writeToStream = __commonJS({
       }
       return true;
     }
-    function subscribe(packet, stream, opts) {
+    function subscribe2(packet, stream, opts) {
       debug("subscribe: packet: ");
       const version = opts ? opts.protocolVersion : 4;
       const settings = packet || {};
@@ -16219,8 +16219,8 @@ var require_event_target = __commonJS({
        * @public
        */
       addEventListener(type, handler, options = {}) {
-        for (const listener of this.listeners(type)) {
-          if (!options[kForOnEventAttribute] && listener[kListener] === handler && !listener[kForOnEventAttribute]) {
+        for (const listener2 of this.listeners(type)) {
+          if (!options[kForOnEventAttribute] && listener2[kListener] === handler && !listener2[kForOnEventAttribute]) {
             return;
           }
         }
@@ -16277,9 +16277,9 @@ var require_event_target = __commonJS({
        * @public
        */
       removeEventListener(type, handler) {
-        for (const listener of this.listeners(type)) {
-          if (listener[kListener] === handler && !listener[kForOnEventAttribute]) {
-            this.removeListener(type, listener);
+        for (const listener2 of this.listeners(type)) {
+          if (listener2[kListener] === handler && !listener2[kForOnEventAttribute]) {
+            this.removeListener(type, listener2);
             break;
           }
         }
@@ -16292,11 +16292,11 @@ var require_event_target = __commonJS({
       EventTarget,
       MessageEvent
     };
-    function callListener(listener, thisArg, event) {
-      if (typeof listener === "object" && listener.handleEvent) {
-        listener.handleEvent.call(listener, event);
+    function callListener(listener2, thisArg, event) {
+      if (typeof listener2 === "object" && listener2.handleEvent) {
+        listener2.handleEvent.call(listener2, event);
       } else {
-        listener.call(thisArg, event);
+        listener2.call(thisArg, event);
       }
     }
   }
@@ -16927,15 +16927,15 @@ var require_websocket = __commonJS({
       Object.defineProperty(WebSocket2.prototype, `on${method}`, {
         enumerable: true,
         get() {
-          for (const listener of this.listeners(method)) {
-            if (listener[kForOnEventAttribute]) return listener[kListener];
+          for (const listener2 of this.listeners(method)) {
+            if (listener2[kForOnEventAttribute]) return listener2[kListener];
           }
           return null;
         },
         set(handler) {
-          for (const listener of this.listeners(method)) {
-            if (listener[kForOnEventAttribute]) {
-              this.removeListener(method, listener);
+          for (const listener2 of this.listeners(method)) {
+            if (listener2[kForOnEventAttribute]) {
+              this.removeListener(method, listener2);
               break;
             }
           }
@@ -23631,68 +23631,119 @@ var require_build2 = __commonJS({
   }
 });
 
-// src/index.ts
-var import_node_http = require("http");
-var import_mqtt = __toESM(require_build2());
-var PORT = Number(process.env.PORT ?? 3e3);
-var MQTT_URL = process.env.MQTT_URL ?? "mqtt://192.168.100.11:1883";
-var TOPIC_LED = "telemetry/s3/led";
-var TOPIC_STATUS = "telemetry/s3/status";
-var latestLed = null;
-var deviceOnline = false;
-var clients = /* @__PURE__ */ new Set();
-var snapshot = () => ({
-  led: latestLed?.led ?? null,
-  ts: latestLed?.ts ?? null,
-  online: deviceOnline,
-  receivedAt: latestLed?.receivedAt ?? null
-});
-var broadcast = () => {
-  const data = `data: ${JSON.stringify(snapshot())}
-
-`;
-  for (const client of clients) client.write(data);
+// src/config.ts
+var config = {
+  port: Number(process.env.PORT ?? 3e3),
+  mqttUrl: process.env.MQTT_URL ?? "mqtt://192.168.100.11:1883",
+  topics: {
+    led: "telemetry/s3/led",
+    status: "telemetry/s3/status"
+  },
+  sseKeepAliveMs: 25e3
 };
-setInterval(() => {
-  for (const client of clients) client.write(": ping\n\n");
-}, 25e3);
-var mqttClient = (0, import_mqtt.connect)(MQTT_URL, { reconnectPeriod: 2e3 });
-mqttClient.on("connect", () => {
-  console.log("Conectado al broker MQTT");
-  mqttClient.subscribe([TOPIC_LED, TOPIC_STATUS], (err) => {
-    if (err) console.error("Error al suscribirse: ", err.message);
-  });
+
+// src/mqttService.ts
+var import_mqtt = __toESM(require_build2());
+
+// src/deviceStore.ts
+var reading = null;
+var online = false;
+var listeners = /* @__PURE__ */ new Set();
+var getSnapshot = () => ({
+  led: reading?.led ?? null,
+  ts: reading?.ts ?? null,
+  online,
+  receivedAt: reading?.receivedAt ?? null
 });
-mqttClient.on("error", (err) => console.error("MQTT error: ", err.message));
-mqttClient.on("offline", () => console.warn("MQTT sin conexion al broker"));
-mqttClient.on("close", () => {
-  deviceOnline = false;
-  broadcast();
-});
-mqttClient.on("message", (topic, payload) => {
-  const text = payload.toString().trim();
-  if (text === "") return;
-  switch (topic) {
-    case TOPIC_STATUS: {
-      deviceOnline = text === "online";
-      console.log("Estado del dispositivo: ", text);
-      broadcast();
-      return;
-    }
-    case TOPIC_LED: {
-      try {
-        const data = JSON.parse(text);
-        if (data.led !== 0 && data.led !== 1 || typeof data.ts !== "number") {
-          throw new Error("formato insesperado");
-        }
-        latestLed = { led: data.led, ts: data.ts, receivedAt: Date.now() };
-        broadcast();
-      } catch (error) {
-        console.error(`Mensaje invalido en ${topic}: ${text}`);
-      }
-    }
+var emit = () => {
+  const state = getSnapshot();
+  for (const fn of listeners) fn(state);
+};
+var setLed = (msg) => {
+  reading = { ...msg, receivedAt: Date.now() };
+  emit();
+};
+var setOnline = (value) => {
+  if (online === value) return;
+  online = value;
+  emit();
+};
+var subscribe = (fn) => {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+};
+
+// src/mqttService.ts
+var parseLed = (text) => {
+  try {
+    const data = JSON.parse(text);
+    if (typeof data !== "object" || data === null) return null;
+    const { led, ts } = data;
+    if (led !== 0 && led !== 1 || typeof ts !== "number") return null;
+    return { led, ts };
+  } catch {
+    return null;
   }
-});
+};
+var startMqtt = () => {
+  const client = (0, import_mqtt.connect)(config.mqttUrl, { reconnectPeriod: 2e3 });
+  client.on("connect", () => {
+    console.log("Conectado al broker MQTT");
+    client.subscribe([config.topics.led, config.topics.status], (err) => {
+      if (err) console.error("Error al suscribirse:", err.message);
+    });
+  });
+  client.on("error", (err) => console.error("MQTT error:", err.message));
+  client.on("offline", () => console.warn("MQTT sin conexi\xF3n al broker"));
+  client.on("close", () => setOnline(false));
+  client.on("message", (topic, payload) => {
+    const text = payload.toString().trim();
+    if (text === "") return;
+    if (topic === config.topics.status) {
+      console.log("Estado del dispositivo:", text);
+      setOnline(text === "online");
+    } else if (topic === config.topics.led) {
+      const msg = parseLed(text);
+      if (msg) setLed(msg);
+      else console.error(`Mensaje inv\xE1lido en ${topic}: ${text}`);
+    }
+  });
+  return client;
+};
+
+// src/sse.ts
+var clients = /* @__PURE__ */ new Set();
+var write = (res, state) => res.write(`data: ${JSON.stringify(state)}
+
+`);
+var startSse = () => {
+  subscribe((state) => {
+    for (const client of clients) write(client, state);
+  });
+  setInterval(() => {
+    for (const client of clients) client.write(": ping\n\n");
+  }, config.sseKeepAliveMs).unref();
+};
+var addSseClient = (req, res, cors) => {
+  res.writeHead(200, {
+    ...cors,
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no"
+  });
+  res.write("retry: 2000\n\n");
+  write(res, getSnapshot());
+  clients.add(res);
+  req.on("close", () => clients.delete(res));
+};
+var closeSseClients = () => {
+  for (const client of clients) client.end();
+  clients.clear();
+};
+
+// src/http.ts
+var import_node_http = require("http");
 var CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -23702,44 +23753,31 @@ var send = (res, code, body) => {
   res.writeHead(code, { ...CORS, "Content-Type": "application/json" });
   res.end(body === void 0 ? void 0 : JSON.stringify(body));
 };
-var requestListener = (req, res) => {
+var listener = (req, res) => {
   if (req.method === "OPTIONS") return send(res, 204);
   if (req.method !== "GET") return send(res, 405, { error: "Method not allowed" });
   const path = (req.url ?? "").split("?")[0];
   switch (path) {
     case "/api/s3/led":
-      return send(res, 200, {
-        led: latestLed?.led ?? null,
-        ts: latestLed?.ts ?? null,
-        online: deviceOnline,
-        receivedAt: latestLed?.receivedAt ?? null
-      });
-    case "/api/s3/led/stream": {
-      res.writeHead(200, {
-        ...CORS,
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        connection: "keep-alive",
-        "X-Accel-Buffering": "no"
-      });
-      res.write("retry: 2000\n\n");
-      res.write(`data: ${JSON.stringify(snapshot())}
-
-`);
-      clients.add(res);
-      req.on("close", () => clients.delete(res));
-      return;
-    }
+      return send(res, 200, getSnapshot());
+    case "/api/s3/led/stream":
+      return addSseClient(req, res, CORS);
+    default:
+      return send(res, 404, { error: "Resource not found" });
   }
-  send(res, 404, { error: "Resource not found" });
 };
-var server = (0, import_node_http.createServer)(requestListener);
-server.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+var createHttpServer = () => (0, import_node_http.createServer)(listener);
+
+// src/index.ts
+startSse();
+var mqttClient = startMqtt();
+var server = createHttpServer();
+server.listen(config.port, () => {
+  console.log(`Server en http://localhost:${config.port}`);
 });
 var shutdown = () => {
   console.log("Cerrando...");
-  for (const client of clients) client.end();
+  closeSseClients();
   mqttClient.end(true);
   server.close(() => process.exit(0));
 };
