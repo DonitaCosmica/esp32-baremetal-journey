@@ -1,7 +1,11 @@
-export const renderState = (el, state) => {
-    const led = state.led === 1 ? 'ON' : state.led === 0 ? 'OFF' : '—';
-    el.textContent = `LED: ${led}` + (state.online ? '' : ' (dispositivo offline)');
+const label = (r, on, off) => r === null ? '—' : r.value === 1 ? on : off;
+const offline = (s) => (s.online ? '' : ' (dispositivo offline)');
+export const renderLed = (el, s) => {
+    el.textContent = `LED: ${label(s.led, 'ON', 'OFF')}${offline(s)}`;
 };
-export const renderDisconnected = (el) => {
-    el.textContent = 'LED: sin conexión';
+export const renderProximity = (el, s) => {
+    el.textContent = `Sensor: ${label(s.proximity, 'objeto detectado', 'objeto no detectado')}${offline(s)}`;
+};
+export const renderDisconnected = (el, name) => {
+    el.textContent = `${name}: sin conexión`;
 };

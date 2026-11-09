@@ -1,30 +1,31 @@
-import type { DeviceState, LedMessage } from "./types";
+import type { DeviceState, Reading, Sample } from './types'
 
 type Listener = (state: DeviceState) => void
 
-let reading: (LedMessage & { receivedAt: number }) | null = null
+let led: Reading | null = null
+let proximity: Reading | null = null
 let online = false
 const listeners = new Set<Listener>()
 
-export const getSnapshot = (): DeviceState => ({
-  led: reading?.led ?? null,
-  ts: reading?.ts ?? null,
-  online,
-  receivedAt: reading?.receivedAt ?? null,
-})
+export const getSnapshot = (): DeviceState => ({ online, led, proximity })
 
 const emit = () => {
   const state = getSnapshot()
-  for(const fn of listeners) fn(state)
+  for (const fn of listeners) fn(state)
 }
 
-export const setLed = (msg: LedMessage) => {
-  reading = { ...msg, receivedAt: Date.now() }
+export const setLed = (s: Sample) => {
+  led = { ...s, receivedAt: Date.now() }
+  emit()
+}
+
+export const setProximity = (s: Sample) => {
+  proximity = { ...s, receivedAt: Date.now() }
   emit()
 }
 
 export const setOnline = (value: boolean) => {
-  if(online === value) return
+  if (online === value) return
   online = value
   emit()
 }

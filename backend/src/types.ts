@@ -1,11 +1,14 @@
-export interface LedMessage {
-  led: 0 | 1
+export interface Sample {
+  value: 0 | 1
   ts: number
 }
 
+export interface Reading extends Sample {
+  receivedAt: number
+}
+
 export interface DeviceState {
-  led: 0 | 1 | null
-  ts: number | null
   online: boolean
-  receivedAt: number | null
+  led: Reading | null
+  proximity: Reading | null
 }

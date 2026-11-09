@@ -3020,10 +3020,10 @@ var require_from = __commonJS({
         // TODO(ronag): What options should be allowed?
         ...opts
       });
-      let reading2 = false;
+      let reading = false;
       readable._read = function() {
-        if (!reading2) {
-          reading2 = true;
+        if (!reading) {
+          reading = true;
           next();
         }
       };
@@ -3059,12 +3059,12 @@ var require_from = __commonJS({
             } else {
               const res = value && typeof value.then === "function" ? await value : value;
               if (res === null) {
-                reading2 = false;
+                reading = false;
                 throw new ERR_STREAM_NULL_VALUES();
               } else if (readable.push(res)) {
                 continue;
               } else {
-                reading2 = false;
+                reading = false;
               }
             }
           } catch (err) {
@@ -5288,7 +5288,7 @@ var require_pipeline = __commonJS({
     var PassThrough;
     var Readable;
     var addAbortListener;
-    function destroyer(stream, reading2, writing) {
+    function destroyer(stream, reading, writing) {
       let finished = false;
       stream.on("close", () => {
         finished = true;
@@ -5296,7 +5296,7 @@ var require_pipeline = __commonJS({
       const cleanup = eos(
         stream,
         {
-          readable: reading2,
+          readable: reading,
           writable: writing
         },
         (err) => {
@@ -5464,9 +5464,9 @@ var require_pipeline = __commonJS({
       let ret;
       for (let i = 0; i < streams.length; i++) {
         const stream = streams[i];
-        const reading2 = i < streams.length - 1;
+        const reading = i < streams.length - 1;
         const writing = i > 0;
-        const end = reading2 || (opts === null || opts === void 0 ? void 0 : opts.end) !== false;
+        const end = reading || (opts === null || opts === void 0 ? void 0 : opts.end) !== false;
         const isLastStream = i === streams.length - 1;
         if (isNodeStream(stream)) {
           let onError2 = function(err) {
@@ -5476,7 +5476,7 @@ var require_pipeline = __commonJS({
           };
           var onError = onError2;
           if (end) {
-            const { destroy, cleanup } = destroyer(stream, reading2, writing);
+            const { destroy, cleanup } = destroyer(stream, reading, writing);
             destroys.push(destroy);
             if (isReadable(stream) && isLastStream) {
               lastStreamCleanup.push(cleanup);
@@ -5512,7 +5512,7 @@ var require_pipeline = __commonJS({
           ret = stream(ret, {
             signal
           });
-          if (reading2) {
+          if (reading) {
             if (!isIterable(ret, true)) {
               throw new ERR_INVALID_RETURN_VALUE("AsyncIterable", `transform[${i - 1}]`, ret);
             }
@@ -23637,7 +23637,8 @@ var config = {
   mqttUrl: process.env.MQTT_URL ?? "mqtt://192.168.100.11:1883",
   topics: {
     led: "telemetry/s3/led",
-    status: "telemetry/s3/status"
+    status: "telemetry/s3/status",
+    proximity: "telemetry/s3/proximity"
   },
   sseKeepAliveMs: 25e3
 };
@@ -23646,21 +23647,21 @@ var config = {
 var import_mqtt = __toESM(require_build2());
 
 // src/deviceStore.ts
-var reading = null;
+var led = null;
+var proximity = null;
 var online = false;
 var listeners = /* @__PURE__ */ new Set();
-var getSnapshot = () => ({
-  led: reading?.led ?? null,
-  ts: reading?.ts ?? null,
-  online,
-  receivedAt: reading?.receivedAt ?? null
-});
+var getSnapshot = () => ({ online, led, proximity });
 var emit = () => {
   const state = getSnapshot();
   for (const fn of listeners) fn(state);
 };
-var setLed = (msg) => {
-  reading = { ...msg, receivedAt: Date.now() };
+var setLed = (s) => {
+  led = { ...s, receivedAt: Date.now() };
+  emit();
+};
+var setProximity = (s) => {
+  proximity = { ...s, receivedAt: Date.now() };
   emit();
 };
 var setOnline = (value) => {
@@ -23674,13 +23675,15 @@ var subscribe = (fn) => {
 };
 
 // src/mqttService.ts
-var parseLed = (text) => {
+var parseSample = (text, key) => {
   try {
     const data = JSON.parse(text);
     if (typeof data !== "object" || data === null) return null;
-    const { led, ts } = data;
-    if (led !== 0 && led !== 1 || typeof ts !== "number") return null;
-    return { led, ts };
+    const record = data;
+    const value = record[key];
+    const ts = record.ts;
+    if (value !== 0 && value !== 1 || typeof ts !== "number") return null;
+    return { value, ts };
   } catch {
     return null;
   }
@@ -23689,7 +23692,7 @@ var startMqtt = () => {
   const client = (0, import_mqtt.connect)(config.mqttUrl, { reconnectPeriod: 2e3 });
   client.on("connect", () => {
     console.log("Conectado al broker MQTT");
-    client.subscribe([config.topics.led, config.topics.status], (err) => {
+    client.subscribe(Object.values(config.topics), (err) => {
       if (err) console.error("Error al suscribirse:", err.message);
     });
   });
@@ -23699,13 +23702,23 @@ var startMqtt = () => {
   client.on("message", (topic, payload) => {
     const text = payload.toString().trim();
     if (text === "") return;
-    if (topic === config.topics.status) {
-      console.log("Estado del dispositivo:", text);
-      setOnline(text === "online");
-    } else if (topic === config.topics.led) {
-      const msg = parseLed(text);
-      if (msg) setLed(msg);
-      else console.error(`Mensaje inv\xE1lido en ${topic}: ${text}`);
+    switch (topic) {
+      case config.topics.status:
+        console.log("Estado del dispositivo:", text);
+        setOnline(text === "online");
+        break;
+      case config.topics.led: {
+        const s = parseSample(text, "led");
+        if (s) setLed(s);
+        else console.error(`Mensaje inv\xE1lido en ${topic}: ${text}`);
+        break;
+      }
+      case config.topics.proximity: {
+        const s = parseSample(text, "detected");
+        if (s) setProximity(s);
+        else console.error(`Mensaje inv\xE1lido en ${topic}: ${text}`);
+        break;
+      }
     }
   });
   return client;
@@ -23758,9 +23771,9 @@ var listener = (req, res) => {
   if (req.method !== "GET") return send(res, 405, { error: "Method not allowed" });
   const path = (req.url ?? "").split("?")[0];
   switch (path) {
-    case "/api/s3/led":
+    case "/api/s3/state":
       return send(res, 200, getSnapshot());
-    case "/api/s3/led/stream":
+    case "/api/s3/stream":
       return addSseClient(req, res, CORS);
     default:
       return send(res, 404, { error: "Resource not found" });

@@ -4,6 +4,7 @@ export const config = {
   topics: {
     led: 'telemetry/s3/led',
     status: 'telemetry/s3/status',
+    proximity: 'telemetry/s3/proximity'
   },
   sseKeepAliveMs: 25_000,
 } as const

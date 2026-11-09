@@ -4,12 +4,22 @@
 #include "sdkconfig.h"
 #include "hw.h"
 #include "net.h"
+#include "link.h"
+#include "display.h"
 
 #define CPU_HZ (CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ * 1000000u)
 #define DEBOUNCE_MS 30u
 
+static void on_proximity(uint8_t detected) {
+  display_show_proximity(detected);
+  net_publish_proximity(detected);
+}
+
 void app_main(void) {
+  display_init();
+  display_show_waiting();
   net_start();
+  link_start(on_proximity);
   hw_gpio_init();
 
   uint32_t led_on = 0;
@@ -38,6 +48,6 @@ void app_main(void) {
       }
     }
 
-    vTaskDelay(1); // cede el CPU (1 ms con HZ=1000); evita el task watchdog
+    vTaskDelay(1);
   }
 }

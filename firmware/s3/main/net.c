@@ -12,12 +12,14 @@
 
 #define TOPIC_LED "telemetry/s3/led"
 #define TOPIC_STATUS "telemetry/s3/status"
+#define TOPIC_PROXIMITY "telemetry/s3/proximity"
 
 static const char *TAG = "net";
 static esp_mqtt_client_handle_t mqtt;
 static volatile bool mqtt_ok = false;
 static volatile bool mqtt_started = false;
-static volatile int last_led = -1; // último estado, para republicar al reconectar
+static volatile int last_led = -1;
+static volatile int last_proximity = -1;
 static int retry_ms = 1000;
 
 static void publish_led(int on) {
@@ -26,6 +28,14 @@ static void publish_led(int on) {
     (unsigned long)(esp_timer_get_time() / 1000));
   
   esp_mqtt_client_publish(mqtt, TOPIC_LED, buf, n, 1, 1);
+}
+
+static void publish_proximity(int detected) {
+  char buf[64];
+  int n = snprintf(buf, sizeof buf, "{\"detected\":%d,\"ts\":%lu}", detected,
+    (unsigned long)(esp_timer_get_time() / 1000));
+
+  esp_mqtt_client_publish(mqtt, TOPIC_PROXIMITY, buf, n, 1, 1);
 }
 
 static void on_wifi(void *arg, esp_event_base_t base, int32_t id, void *data) {
@@ -71,6 +81,11 @@ static void on_mqtt(void *arg, esp_event_base_t base, int32_t id, void *data) {
 void net_publish_led(uint32_t on) {
   last_led = (int)on;
   if(mqtt_ok) publish_led((int)on);
+}
+
+void net_publish_proximity(uint32_t detected) {
+  last_proximity = (int)detected;
+  if(mqtt_ok) publish_proximity((int)detected);
 }
 
 void net_start(void) {

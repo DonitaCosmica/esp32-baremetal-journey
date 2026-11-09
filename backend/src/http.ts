@@ -20,9 +20,9 @@ const listener = (req: IncomingMessage, res: ServerResponse) => {
   const path = (req.url ?? '').split('?')[0]
 
   switch (path) {
-    case '/api/s3/led':
+    case '/api/s3/state':
       return send(res, 200, getSnapshot())
-    case '/api/s3/led/stream':
+    case '/api/s3/stream':
       return addSseClient(req, res, CORS)
     default:
       return send(res, 404, { error: 'Resource not found' })

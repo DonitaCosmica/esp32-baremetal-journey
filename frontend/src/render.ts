@@ -1,10 +1,18 @@
-import type { DeviceState } from './types.js'
+import type { DeviceState, Reading } from './types.js'
 
-export const renderState = (el: HTMLElement, state: DeviceState): void => {
-  const led = state.led === 1 ? 'ON' : state.led === 0 ? 'OFF' : '—'
-  el.textContent = `LED: ${led}` + (state.online ? '' : ' (dispositivo offline)')
+const label = (r: Reading | null, on: string, off: string): string =>
+  r === null ? '—' : r.value === 1 ? on : off
+
+const offline = (s: DeviceState): string => (s.online ? '' : ' (dispositivo offline)')
+
+export const renderLed = (el: HTMLElement, s: DeviceState): void => {
+  el.textContent = `LED: ${label(s.led, 'ON', 'OFF')}${offline(s)}`
 }
 
-export const renderDisconnected = (el: HTMLElement): void => {
-  el.textContent = 'LED: sin conexión'
+export const renderProximity = (el: HTMLElement, s: DeviceState): void => {
+  el.textContent = `Sensor: ${label(s.proximity, 'objeto detectado', 'objeto no detectado')}${offline(s)}`
+}
+
+export const renderDisconnected = (el: HTMLElement, name: string): void => {
+  el.textContent = `${name}: sin conexión`
 }
