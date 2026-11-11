@@ -1,16 +1,16 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { config } from './config'
-import { getSnapshot, subscribe } from './deviceStore'
-import type { DeviceState } from './types'
+import { listDevices, subscribe } from './deviceStore'
+import { Device } from './types'
 
 const clients = new Set<ServerResponse>()
 
-const write = (res: ServerResponse, state: DeviceState) =>
-  res.write(`data: ${JSON.stringify(state)}\n\n`)
+const send = (res: ServerResponse, event: string, data: unknown): Boolean =>
+  res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
 
 export const startSse = () => {
-  subscribe((state) => {
-    for(const client of clients) write(client, state)
+  subscribe((device: Device) => {
+    for(const client of clients) send(client, 'device', device)
   })
 
   setInterval(() => {
@@ -32,7 +32,7 @@ export const addSseClient = (
   })
 
   res.write('retry: 2000\n\n')
-  write(res, getSnapshot())
+  send(res, 'snapshot', listDevices())
 
   clients.add(res)
   req.on('close', () => clients.delete(res))

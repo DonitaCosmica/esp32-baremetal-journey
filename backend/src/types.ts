@@ -1,14 +1,23 @@
-export interface Sample {
-  value: 0 | 1
-  ts: number
+export type Value = number | string
+export type Group = Record<string, string>
+
+export interface Telemetry {
+  ts: number,
+  via?: string,
+  metrics: Group,
+  sensors_health: Group,
+  diagnostics: Group
 }
 
-export interface Reading extends Sample {
-  receivedAt: number
+export interface DeviceRef { // region/zone/id
+  key: string,
+  region: string,
+  zone: string,
+  id: string
 }
 
-export interface DeviceState {
-  online: boolean
-  led: Reading | null
-  proximity: Reading | null
+export interface Device extends DeviceRef {
+  online: boolean,
+  telemetry: Telemetry | null,
+  receivedAt: number | null
 }

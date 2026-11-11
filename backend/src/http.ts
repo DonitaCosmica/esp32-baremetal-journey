@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { getSnapshot } from './deviceStore'
+import { getDevice, listDevices } from './deviceStore'
 import { addSseClient } from './sse'
 
 const CORS = {
@@ -17,16 +17,18 @@ const listener = (req: IncomingMessage, res: ServerResponse) => {
   if (req.method === 'OPTIONS') return send(res, 204)
   if (req.method !== 'GET') return send(res, 405, { error: 'Method not allowed' })
 
-  const path = (req.url ?? '').split('?')[0]
+  const path = (req.url ?? '').split('?')[0] ?? ''
 
-  switch (path) {
-    case '/api/s3/state':
-      return send(res, 200, getSnapshot())
-    case '/api/s3/stream':
-      return addSseClient(req, res, CORS)
-    default:
-      return send(res, 404, { error: 'Resource not found' })
+  if (path === '/api/devices') return send(res, 200, listDevices())
+  if (path === '/api/stream') return addSseClient(req, res, CORS)
+
+  const match = path.match(/^\/api\/devices\/([^/]+)\/([^/]+)\/([^/]+)$/)
+  if(match) {
+    const device = getDevice(`${match[1]}/${match[2]}/${match[3]}`)
+    return device ? send(res, 200, device) : send(res, 404, { error: 'Device not found' })
   }
+
+  send(res, 404, { error: 'Resource not found' })
 }
 
 export const createHttpServer = () => createServer(listener)

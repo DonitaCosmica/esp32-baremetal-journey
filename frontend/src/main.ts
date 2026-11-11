@@ -1,19 +1,14 @@
 import { STREAM_URL } from './config.js'
-import { watchDevice } from './stream.js'
-import { renderLed, renderProximity, renderDisconnected } from './render.js'
+import { watchDevices } from './stream.js'
+import { renderDevice } from './render.js'
 
-const ledEl = document.getElementById('s3-led')
-const proxEl = document.getElementById('wroom-proximity')
-if (!ledEl || !proxEl) throw new Error('Faltan elementos en el HTML')
+const root = document.getElementById('devices')
+const conn = document.getElementById('conn')
+if(!root || !conn) throw new Error('Faltan elementos en el HTML')
 
-watchDevice(
+watchDevices(
   STREAM_URL,
-  (state) => {
-    renderLed(ledEl, state)
-    renderProximity(proxEl, state)
-  },
-  () => {
-    renderDisconnected(ledEl, 'LED')
-    renderDisconnected(proxEl, 'Sensor')
-  },
+  (list) => list.forEach((device) => renderDevice(root, device)),
+  (device) => renderDevice(root, device),
+  (ok) => { conn.textContent = ok ? 'Conectado' : 'Sin conexión con el servidor' },
 )

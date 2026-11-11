@@ -1,33 +1,52 @@
-import type { DeviceState, Reading, Sample } from './types'
+import type { Device, DeviceRef, Telemetry } from './types'
 
-type Listener = (state: DeviceState) => void
+type Listener = (device: Device) => void
 
-let led: Reading | null = null
-let proximity: Reading | null = null
-let online = false
+const devices = new Map<string, Device>()
 const listeners = new Set<Listener>()
 
-export const getSnapshot = (): DeviceState => ({ online, led, proximity })
-
-const emit = () => {
-  const state = getSnapshot()
-  for (const fn of listeners) fn(state)
+const emit = (device: Device) => {
+  for(const fn of listeners)
+    fn(device)
 }
 
-export const setLed = (s: Sample) => {
-  led = { ...s, receivedAt: Date.now() }
-  emit()
+const upsert = (ref: DeviceRef): Device => {
+  const existing = devices.get(ref.key)
+  if(existing) return existing
+
+  const created: Device = { ...ref, online: false, telemetry: null, receivedAt: null }
+  devices.set(ref.key, created)
+  return created
 }
 
-export const setProximity = (s: Sample) => {
-  proximity = { ...s, receivedAt: Date.now() }
-  emit()
+const setAllOffline = (match: (device: Device) => boolean): void => {
+  for(const device of devices.values()) {
+    if(device.online && match(device)) {
+      device.online = false
+      emit(device)
+    }
+  }
 }
 
-export const setOnline = (value: boolean) => {
-  if (online === value) return
-  online = value
-  emit()
+export const listDevices = (): Device[] => [...devices.values()]
+export const getDevice = (key: string): Device | undefined => devices.get(key)
+export const markAllOffline = () => setAllOffline(() => true)
+export const markViaOffline = (gatewayId: string) =>setAllOffline((device: Device) => device.telemetry?.via === gatewayId)
+
+export const setTelemetry = (ref: DeviceRef, telemetry: Telemetry): void => {
+  const device = upsert(ref)
+
+  device.telemetry = telemetry;
+  device.receivedAt = Date.now()
+  emit(device)
+}
+
+export const setOnline = (ref: DeviceRef, online: boolean): void => {
+  const device = upsert(ref)
+
+  if(device.online === online) return
+  device.online = online
+  emit(device)
 }
 
 export const subscribe = (fn: Listener) => {

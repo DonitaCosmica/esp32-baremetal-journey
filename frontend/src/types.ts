@@ -1,11 +1,20 @@
-export interface Reading {
-  value: 0 | 1
+export type Value = number | string
+export type Group = Record<string, Value>
+
+export interface Telemetry {
   ts: number
-  receivedAt: number
+  via?: string
+  metrics: Group
+  sensors_health: Group
+  diagnostics: Group
 }
 
-export interface DeviceState {
+export interface Device {
+  key: string
+  region: string
+  zone: string
+  id: string
   online: boolean
-  led: Reading | null
-  proximity: Reading | null
+  telemetry: Telemetry | null
+  receivedAt: number | null
 }

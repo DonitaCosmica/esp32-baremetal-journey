@@ -1,21 +1,19 @@
-import type { DeviceState } from './types.js'
+import type { Device } from './types.js'
 
-export const watchDevice = (
+const parse = <T>(event: Event): T => JSON.parse((event as MessageEvent<string>).data) as T
+
+export const watchDevices = (
   url: string,
-  onState: (state: DeviceState) => void,
-  onError: () => void,
+  onSnapshot: (devices: Device[]) => void,
+  onDevice: (device: Device) => void,
+  onConnection: (connected: boolean) => void,
 ): (() => void) => {
   const source = new EventSource(url)
 
-  source.onmessage = (event: MessageEvent<string>) => {
-    try {
-      onState(JSON.parse(event.data) as DeviceState)
-    } catch {
-      console.error('Evento inválido:', event.data)
-    }
-  }
-
-  source.onerror = onError
+  source.onopen = () => onConnection(true)
+  source.onerror = () => onConnection(false)
+  source.addEventListener('snapshot', (event) => onSnapshot(parse<Device[]>(event)))
+  source.addEventListener('device', (event) => onDevice(parse<Device>(event)))
 
   return () => source.close()
 }
