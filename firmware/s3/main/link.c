@@ -1,41 +1,85 @@
+#include <string.h>
 #include "esp_log.h"
 #include "esp_now.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+#include "net.h"
+#include "nodes.h"
 #include "proto.h"
+#include "telemetry.h"
 #include "link.h"
 
 static const char *TAG = "link";
+
+typedef struct {
+  uint8_t mac[6];
+  int8_t rssi;
+  uint8_t len;
+  uint8_t data[PROTO_MAX_FRAME];
+} rx_item_it;
+
 static QueueHandle_t q;
-static link_cb_t user_cb;
 
 static void on_recv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
-  if(len != (int)sizeof(proto_msg_t)) return;
+  if(len <= 0 || len > PROTO_MAX_FRAME) return;
 
-  const proto_msg_t *m = (const proto_msg_t *)data;
-  if(m->magic != PROTO_MAGIC || m->type != MSG_PROXIMITY) return;
+  rx_item_it it;
+  memcpy(it.mac, info->src_addr, 6);
 
-  uint8_t d = m->detected ? 1 : 0;
-  xQueueSend(q, &d, 0);
+  it.rssi = info->rx_ctrl->rssi;
+  it.len = (uint8_t)len;
+
+  memcpy(it.data, data, len);
+  xQueueSend(q, &it, 0);
+}
+
+static void handle(const rx_item_it *it) {
+  proto_hdr_t hdr;
+  if(!proto_parse(it->data, it->len, &hdr)) {
+    ESP_LOGW(TAG, "trama inválida (%u bytes)", it->len);
+    return;
+  }
+
+  bool came_online = false;
+  if(!nodes_touch(hdr.node_id, it->mac, it->rssi, hdr.seq, &came_online)) {
+    ESP_LOGW(TAG, "tabla de nodos llena, descarto nodo %u", hdr.node_id);
+    return;
+  }
+
+  char dev[24];
+  node_device_id(dev, sizeof dev, hdr.node_id);
+  if(came_online) {
+    ESP_LOGI(TAG, "%s en línea", dev);
+    net_publish(dev, "status", "online", 1, true);
+  }
+
+  telemetry_from_node(it->data, it->len, it->rssi);
 }
 
 static void link_task(void *arg) {
-  int last = -1;
-  uint8_t d;
+  rx_item_it it;
+
   for(;;) {
-    if(xQueueReceive(q, &d, portMAX_DELAY) == pdTRUE && d != last) {
-      last = d;
-      ESP_LOGI(TAG, "proximidad: %d", d);
-      user_cb(d);
+    if(xQueueReceive(q, &it, pdMS_TO_TICKS(1000)) == pdTRUE) handle(&it);
+
+    uint8_t gone[MAX_NODES];
+    size_t n = nodes_expire(esp_timer_get_time(), gone, MAX_NODES);
+
+    for(size_t i = 0; i < n; ++i) {
+      char dev[24];
+      node_device_id(dev, sizeof dev, gone[i]);
+      ESP_LOGW(TAG, "%s sin tramas: offline", dev);
+      net_publish(dev, "status", "offline", 1, true);
     }
   }
 }
 
-void link_start(link_cb_t cb) {
-  user_cb = cb;
-  q = xQueueCreate(8, sizeof(uint8_t));
-  xTaskCreate(link_task, "link", 4096, NULL, 5, NULL);
+void link_start(void) {
+  nodes_init();
+  q = xQueueCreate(8, sizeof(rx_item_it));
+  xTaskCreate(link_task, "link", 6144, NULL, 5, NULL);
   ESP_ERROR_CHECK(esp_now_init());
   ESP_ERROR_CHECK(esp_now_register_recv_cb(on_recv));
 }

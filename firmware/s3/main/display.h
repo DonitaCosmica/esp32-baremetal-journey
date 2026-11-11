@@ -2,5 +2,6 @@
 #include <stdint.h>
 
 void display_init(void);
-void display_show_waiting(void);
-void display_show_proximity(uint8_t);
+void display_clear(void);
+void display_printf(int line, const char *fmt, ...); // línea 0..7, 21 caracteres
+void display_flush(void);

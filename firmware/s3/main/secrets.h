@@ -1,4 +1,4 @@
 #pragma once
-#define WIFI_SSID "tu_red_2_4ghz"
-#define WIFI_PASS "tu_clave"
-#define MQTT_URI  "mqtt://192.168.x.x:1883"
+#define WIFI_SSID "Mega-2.4G-C1AF"
+#define WIFI_PASS "btARBzuj76"
+#define MQTT_URI  "mqtt://192.168.100.11:1883"

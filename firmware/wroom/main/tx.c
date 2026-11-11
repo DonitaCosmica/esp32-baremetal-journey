@@ -59,13 +59,10 @@ void tx_start(void) {
   ESP_ERROR_CHECK(esp_now_add_peer(&peer));
 }
 
-void tx_send_proximity(uint8_t detected) {
-  if(fails >= 2) hop_channel();
-
-  static uint8_t seq;
-  proto_msg_t m= { PROTO_MAGIC, MSG_PROXIMITY, detected ? 1 : 0, seq++ };
-  esp_err_t r = esp_now_send(S3_MAC, (const uint8_t *)&m, sizeof m);
-  if(r != ESP_OK) ESP_LOGW(TAG, "esp_now_send: %s", esp_err_to_name(r));
+void tx_send(const uint8_t *data, size_t len) {
+  if (fails >= 2) hop_channel();
+  esp_err_t r = esp_now_send(S3_MAC, data, len);
+  if (r != ESP_OK) ESP_LOGW(TAG, "esp_now_send: %s", esp_err_to_name(r));
 }
 
 bool tx_linked(void) { return fails == 0; }

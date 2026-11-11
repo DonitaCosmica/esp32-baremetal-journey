@@ -7,36 +7,18 @@
 #include "esp_timer.h"
 #include "nvs_flash.h"
 #include "mqtt_client.h"
+#include "esp_sntp.h"
+#include "gw_config.h"
 #include "net.h"
 #include "secrets.h"
-
-#define TOPIC_LED "telemetry/s3/led"
-#define TOPIC_STATUS "telemetry/s3/status"
-#define TOPIC_PROXIMITY "telemetry/s3/proximity"
 
 static const char *TAG = "net";
 static esp_mqtt_client_handle_t mqtt;
 static volatile bool mqtt_ok = false;
 static volatile bool mqtt_started = false;
-static volatile int last_led = -1;
-static volatile int last_proximity = -1;
+static esp_netif_t *sta_netif;
+static char lwt_topic[128];
 static int retry_ms = 1000;
-
-static void publish_led(int on) {
-  char buf[64];
-  int n = snprintf(buf, sizeof buf, "{\"led\":%d,\"ts\":%lu}", on,
-    (unsigned long)(esp_timer_get_time() / 1000));
-  
-  esp_mqtt_client_publish(mqtt, TOPIC_LED, buf, n, 1, 1);
-}
-
-static void publish_proximity(int detected) {
-  char buf[64];
-  int n = snprintf(buf, sizeof buf, "{\"detected\":%d,\"ts\":%lu}", detected,
-    (unsigned long)(esp_timer_get_time() / 1000));
-
-  esp_mqtt_client_publish(mqtt, TOPIC_PROXIMITY, buf, n, 1, 1);
-}
 
 static void on_wifi(void *arg, esp_event_base_t base, int32_t id, void *data) {
   if(base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
@@ -54,6 +36,9 @@ static void on_wifi(void *arg, esp_event_base_t base, int32_t id, void *data) {
     if(!mqtt_started) {
       mqtt_started = true;
       esp_mqtt_client_start(mqtt);
+      esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
+      esp_sntp_setservername(0, "pool.ntp.org");
+      esp_sntp_init();
     }
   }
 }
@@ -63,8 +48,7 @@ static void on_mqtt(void *arg, esp_event_base_t base, int32_t id, void *data) {
     case MQTT_EVENT_CONNECTED: {
       ESP_LOGI(TAG, "MQTT conectado");
       mqtt_ok = true;
-      esp_mqtt_client_publish(mqtt, TOPIC_STATUS, "online", 0, 1, 1);
-      if(last_led >= 0) publish_led(last_led);
+      net_publish(GW_DEVICE_ID, "status", "online", 1, true);
       break;
     }
 
@@ -76,16 +60,6 @@ static void on_mqtt(void *arg, esp_event_base_t base, int32_t id, void *data) {
 
     default: break;
   }
-}
-
-void net_publish_led(uint32_t on) {
-  last_led = (int)on;
-  if(mqtt_ok) publish_led((int)on);
-}
-
-void net_publish_proximity(uint32_t detected) {
-  last_proximity = (int)detected;
-  if(mqtt_ok) publish_proximity((int)detected);
 }
 
 void net_start(void) {
@@ -114,12 +88,14 @@ void net_start(void) {
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
   ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wc));
 
+  snprintf(lwt_topic, sizeof lwt_topic, "%s/%s/%s/%s/status", MQTT_ORG, MQTT_REGION, MQTT_ZONE, GW_DEVICE_ID);
+
   esp_mqtt_client_config_t mc = {
     .broker.address.uri = MQTT_URI,
     .credentials.client_id = "s3-led",
     .session.keepalive = 30,
     .session.last_will = {
-      .topic = TOPIC_STATUS, .msg = "offline", .qos = 1, .retain = 1,
+      .topic = lwt_topic, .msg = "offline", .qos = 1, .retain = 1
     },
   };
 
@@ -128,4 +104,30 @@ void net_start(void) {
 
   ESP_ERROR_CHECK(esp_wifi_start());
   ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
+}
+
+bool net_publish(const char *device_id, const char *type, const char *payload, int qos, bool retain) {
+  if(!mqtt_ok) return false;
+  
+  char topic[128];
+  snprintf(topic, sizeof topic, "%s/%s/%s/%s/%s", MQTT_ORG, MQTT_REGION, MQTT_ZONE, device_id, type);
+  return esp_mqtt_client_publish(mqtt, topic, payload, 0, qos, retain) >= 0;
+}
+
+void net_get_info(net_info_t *out) {
+  memset(out, 0, sizeof *out);
+  out->mqtt_up = mqtt_ok;
+  wifi_ap_record_t ap;
+
+  if(esp_wifi_sta_get_ap_info(&ap) == ESP_OK) {
+    out->wifi_up = true;
+    strlcpy(out->ssid, (const char *)ap.ssid, sizeof out->ssid);
+    out->rssi = ap.rssi;
+    out->channel = ap.primary;
+    esp_netif_ip_info_t ip;
+
+    if(sta_netif && esp_netif_get_ip_info(sta_netif, &ip) == ESP_OK) {
+      snprintf(out->ip, sizeof out->ip, IPSTR, IP2STR(&ip.ip));
+    }
+  }
 }
