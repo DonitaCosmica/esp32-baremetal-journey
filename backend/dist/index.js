@@ -4749,12 +4749,12 @@ var require_duplexify = __commonJS({
         });
       }
       if (typeof body === "function") {
-        const { value, write: write2, final, destroy } = fromAsyncGen(body);
+        const { value, write, final, destroy } = fromAsyncGen(body);
         if (isIterable(value)) {
           return from(Duplexify, value, {
             // TODO (ronag): highWaterMark?
             objectMode: true,
-            write: write2,
+            write,
             final,
             destroy
           });
@@ -4778,7 +4778,7 @@ var require_duplexify = __commonJS({
             // TODO (ronag): highWaterMark?
             objectMode: true,
             readable: false,
-            write: write2,
+            write,
             final(cb) {
               final(async () => {
                 try {
@@ -13070,13 +13070,13 @@ var require_client = __commonJS({
             }
             packet = entry.packet;
             this.log("deliver :: call _sendPacket for %o", packet);
-            let send2 = true;
+            let send3 = true;
             if (packet.messageId && packet.messageId !== 0) {
               if (!this.messageIdProvider.register(packet.messageId)) {
-                send2 = false;
+                send3 = false;
               }
             }
-            if (send2) {
+            if (send3) {
               this._sendPacket(packet, (err) => {
                 if (entry.cb) {
                   entry.cb(err);
@@ -23635,11 +23635,7 @@ var require_build2 = __commonJS({
 var config = {
   port: Number(process.env.PORT ?? 3e3),
   mqttUrl: process.env.MQTT_URL ?? "mqtt://192.168.100.11:1883",
-  topics: {
-    led: "telemetry/s3/led",
-    status: "telemetry/s3/status",
-    proximity: "telemetry/s3/proximity"
-  },
+  org: process.env.MQTT_ORG ?? "hackathon",
   sseKeepAliveMs: 25e3
 };
 
@@ -23647,27 +23643,42 @@ var config = {
 var import_mqtt = __toESM(require_build2());
 
 // src/deviceStore.ts
-var led = null;
-var proximity = null;
-var online = false;
+var devices = /* @__PURE__ */ new Map();
 var listeners = /* @__PURE__ */ new Set();
-var getSnapshot = () => ({ online, led, proximity });
-var emit = () => {
-  const state = getSnapshot();
-  for (const fn of listeners) fn(state);
+var emit = (device) => {
+  for (const fn of listeners)
+    fn(device);
 };
-var setLed = (s) => {
-  led = { ...s, receivedAt: Date.now() };
-  emit();
+var upsert = (ref) => {
+  const existing = devices.get(ref.key);
+  if (existing) return existing;
+  const created = { ...ref, online: false, telemetry: null, receivedAt: null };
+  devices.set(ref.key, created);
+  return created;
 };
-var setProximity = (s) => {
-  proximity = { ...s, receivedAt: Date.now() };
-  emit();
+var setAllOffline = (match) => {
+  for (const device of devices.values()) {
+    if (device.online && match(device)) {
+      device.online = false;
+      emit(device);
+    }
+  }
 };
-var setOnline = (value) => {
-  if (online === value) return;
-  online = value;
-  emit();
+var listDevices = () => [...devices.values()];
+var getDevice = (key) => devices.get(key);
+var markAllOffline = () => setAllOffline(() => true);
+var markViaOffline = (gatewayId) => setAllOffline((device) => device.telemetry?.via === gatewayId);
+var setTelemetry = (ref, telemetry) => {
+  const device = upsert(ref);
+  device.telemetry = telemetry;
+  device.receivedAt = Date.now();
+  emit(device);
+};
+var setOnline = (ref, online) => {
+  const device = upsert(ref);
+  if (device.online === online) return;
+  device.online = online;
+  emit(device);
 };
 var subscribe = (fn) => {
   listeners.add(fn);
@@ -23675,15 +23686,27 @@ var subscribe = (fn) => {
 };
 
 // src/mqttService.ts
-var parseSample = (text, key) => {
+var parseTopic = (topic) => {
+  const [org, region, zone, id, type, ...rest] = topic.split("/");
+  if (org !== config.org || !region || !zone || !id || !type || rest.length) return null;
+  return { ref: { key: `${region}/${zone}/${id}`, region, zone, id }, type };
+};
+var isGroup = (value) => typeof value === "object" && value !== null && !Array.isArray(value) && Object.values(value).every((x) => typeof x === "number" || typeof x === "string");
+var parseTelemetry = (text) => {
   try {
-    const data = JSON.parse(text);
-    if (typeof data !== "object" || data === null) return null;
-    const record = data;
-    const value = record[key];
-    const ts = record.ts;
-    if (value !== 0 && value !== 1 || typeof ts !== "number") return null;
-    return { value, ts };
+    const device = JSON.parse(text);
+    if (typeof device !== "object" || typeof device === null || typeof device.ts !== "number") return null;
+    const metrics = device.metrics ?? {};
+    const sensors_health = device.sensors_health ?? {};
+    const diagnostics = device.diagnostics ?? {};
+    if (!isGroup(metrics) || !isGroup(sensors_health) || !isGroup(diagnostics)) return null;
+    return {
+      ts: device.ts,
+      via: typeof device.via === "string" ? device.via : void 0,
+      metrics,
+      sensors_health,
+      diagnostics
+    };
   } catch {
     return null;
   }
@@ -23692,32 +23715,28 @@ var startMqtt = () => {
   const client = (0, import_mqtt.connect)(config.mqttUrl, { reconnectPeriod: 2e3 });
   client.on("connect", () => {
     console.log("Conectado al broker MQTT");
-    client.subscribe(Object.values(config.topics), (err) => {
+    const filters = [`${config.org}/+/+/+/telemetry`, `${config.org}/+/+/+/status`];
+    client.subscribe(filters, (err) => {
       if (err) console.error("Error al suscribirse:", err.message);
     });
   });
   client.on("error", (err) => console.error("MQTT error:", err.message));
   client.on("offline", () => console.warn("MQTT sin conexi\xF3n al broker"));
-  client.on("close", () => setOnline(false));
+  client.on("close", () => markAllOffline());
   client.on("message", (topic, payload) => {
     const text = payload.toString().trim();
-    if (text === "") return;
-    switch (topic) {
-      case config.topics.status:
-        console.log("Estado del dispositivo:", text);
-        setOnline(text === "online");
-        break;
-      case config.topics.led: {
-        const s = parseSample(text, "led");
-        if (s) setLed(s);
-        else console.error(`Mensaje inv\xE1lido en ${topic}: ${text}`);
-        break;
+    const t = parseTopic(topic);
+    if (text === "" || !t) return;
+    switch (t.type) {
+      case "status": {
+        const online = text === "online";
+        setOnline(t.ref, online);
+        if (!online) markViaOffline(t.ref.id);
       }
-      case config.topics.proximity: {
-        const s = parseSample(text, "detected");
-        if (s) setProximity(s);
-        else console.error(`Mensaje inv\xE1lido en ${topic}: ${text}`);
-        break;
+      case "telemetry": {
+        const telemetry = parseTelemetry(text);
+        if (telemetry) setTelemetry(t.ref, telemetry);
+        else console.error(`Telemetr\xEDa inv\xE1lida en ${topic}: ${text}`);
       }
     }
   });
@@ -23726,12 +23745,13 @@ var startMqtt = () => {
 
 // src/sse.ts
 var clients = /* @__PURE__ */ new Set();
-var write = (res, state) => res.write(`data: ${JSON.stringify(state)}
+var send = (res, event, data) => res.write(`event: ${event}
+data: ${JSON.stringify(data)}
 
 `);
 var startSse = () => {
-  subscribe((state) => {
-    for (const client of clients) write(client, state);
+  subscribe((device) => {
+    for (const client of clients) send(client, "device", device);
   });
   setInterval(() => {
     for (const client of clients) client.write(": ping\n\n");
@@ -23746,7 +23766,7 @@ var addSseClient = (req, res, cors) => {
     "X-Accel-Buffering": "no"
   });
   res.write("retry: 2000\n\n");
-  write(res, getSnapshot());
+  send(res, "snapshot", listDevices());
   clients.add(res);
   req.on("close", () => clients.delete(res));
 };
@@ -23762,22 +23782,22 @@ var CORS = {
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Max-Age": "86400"
 };
-var send = (res, code, body) => {
+var send2 = (res, code, body) => {
   res.writeHead(code, { ...CORS, "Content-Type": "application/json" });
   res.end(body === void 0 ? void 0 : JSON.stringify(body));
 };
 var listener = (req, res) => {
-  if (req.method === "OPTIONS") return send(res, 204);
-  if (req.method !== "GET") return send(res, 405, { error: "Method not allowed" });
-  const path = (req.url ?? "").split("?")[0];
-  switch (path) {
-    case "/api/s3/state":
-      return send(res, 200, getSnapshot());
-    case "/api/s3/stream":
-      return addSseClient(req, res, CORS);
-    default:
-      return send(res, 404, { error: "Resource not found" });
+  if (req.method === "OPTIONS") return send2(res, 204);
+  if (req.method !== "GET") return send2(res, 405, { error: "Method not allowed" });
+  const path = (req.url ?? "").split("?")[0] ?? "";
+  if (path === "/api/devices") return send2(res, 200, listDevices());
+  if (path === "/api/stream") return addSseClient(req, res, CORS);
+  const match = path.match(/^\/api\/devices\/([^/]+)\/([^/]+)\/([^/]+)$/);
+  if (match) {
+    const device = getDevice(`${match[1]}/${match[2]}/${match[3]}`);
+    return device ? send2(res, 200, device) : send2(res, 404, { error: "Device not found" });
   }
+  send2(res, 404, { error: "Resource not found" });
 };
 var createHttpServer = () => (0, import_node_http.createServer)(listener);
 

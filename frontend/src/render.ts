@@ -11,7 +11,7 @@ const FORMAT: Record<string, (value: Value) => string> = {
   object_detected: (value) => (value ? 'objeto detectado' : 'objeto no detectado'),
 }
 
-const cards = new Map<string, HTMLElement>
+const cards = new Map<string, HTMLElement>()
 
 const element = (tag: string, cls?: string, text?: string): HTMLElement => {
   const el = document.createElement(tag)

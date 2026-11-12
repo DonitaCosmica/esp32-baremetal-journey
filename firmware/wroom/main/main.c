@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdint.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -7,6 +8,8 @@
 #include "proto.h"
 #include "sensors.h"
 #include "tx.h"
+
+#define MIN_URGENT_US 100000   // mínimo 100 ms entre tramas urgentes
 
 static void send_frame(void) {
   static uint8_t seq;
@@ -25,10 +28,11 @@ void app_main(void) {
   send_frame();
 
   while(1) {
-    int64_t now =esp_timer_get_time();
+    int64_t now = esp_timer_get_time();
     bool urgent = sensors_poll(now);
+    int64_t since = now - t_tx;
 
-    if(urgent || (now - t_tx) >= (int64_t)REPORT_MS * 1000) {
+    if((urgent && since >= MIN_URGENT_US) || since >= (int64_t)REPORT_MS * 1000) {
       send_frame();
       t_tx = now;
     }

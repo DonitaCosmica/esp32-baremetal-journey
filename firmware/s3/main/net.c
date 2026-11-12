@@ -26,8 +26,6 @@ static void on_wifi(void *arg, esp_event_base_t base, int32_t id, void *data) {
   } else if(base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
     wifi_event_sta_disconnected_t *d = (wifi_event_sta_disconnected_t *)data;
     ESP_LOGW(TAG, "Wi-Fi desconectado, motivo=%d", d->reason);
-    vTaskDelay(pdMS_TO_TICKS(retry_ms));
-    if(retry_ms < 8000) retry_ms *= 2;
     esp_wifi_connect();
   } else if(base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
     retry_ms = 1000;
@@ -72,7 +70,7 @@ void net_start(void) {
   ESP_ERROR_CHECK(r);
   ESP_ERROR_CHECK(esp_netif_init());
   ESP_ERROR_CHECK(esp_event_loop_create_default());
-  esp_netif_create_default_wifi_sta();
+  sta_netif = esp_netif_create_default_wifi_sta();
 
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
   ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -108,6 +106,7 @@ void net_start(void) {
 
 bool net_publish(const char *device_id, const char *type, const char *payload, int qos, bool retain) {
   if(!mqtt_ok) return false;
+  if(qos > 0 && esp_mqtt_client_get_outbox_size(mqtt) > 8192) return false;
   
   char topic[128];
   snprintf(topic, sizeof topic, "%s/%s/%s/%s/%s", MQTT_ORG, MQTT_REGION, MQTT_ZONE, device_id, type);
@@ -124,8 +123,8 @@ void net_get_info(net_info_t *out) {
     strlcpy(out->ssid, (const char *)ap.ssid, sizeof out->ssid);
     out->rssi = ap.rssi;
     out->channel = ap.primary;
-    esp_netif_ip_info_t ip;
 
+    esp_netif_ip_info_t ip;
     if(sta_netif && esp_netif_get_ip_info(sta_netif, &ip) == ESP_OK) {
       snprintf(out->ip, sizeof out->ip, IPSTR, IP2STR(&ip.ip));
     }

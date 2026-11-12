@@ -11,6 +11,8 @@ typedef enum { ST_OK = 0, ST_WARNING = 1, ST_FAULT = 2 } status_t;
   X( 3, M_CHLORINE_MG_L,    "chlorine_mg_l",                  GRP_METRICS,  KIND_NUM,     2) \
   X( 4, M_FLOW_LPS,         "flow_lps",                       GRP_METRICS,  KIND_NUM,     1) \
   X( 5, M_OBJECT_DETECTED,  "object_detected",                GRP_METRICS,  KIND_NUM,     0) \
+  X( 6, M_WATER_TEMP_C,     "water_temp_c",                   GRP_METRICS,  KIND_NUM,     1) \
+  X( 7, M_CONDUCTIVITY_TDS, "conductivity_tds",               GRP_METRICS,  KIND_NUM,     2) \
   X(20, M_PH_ELECTRODE_MV,  "ph_electrode_mv",                GRP_HEALTH,   KIND_NUM,     1) \
   X(21, M_PH_STATUS,        "ph_status",                      GRP_HEALTH,   KIND_STATUS,  0) \
   X(22, M_TURB_LENS_PCT,    "turbidity_lens_cleanliness_pct", GRP_HEALTH,   KIND_NUM,     1) \

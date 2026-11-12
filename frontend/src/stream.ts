@@ -1,6 +1,10 @@
 import type { Device } from './types.js'
 
-const parse = <T>(event: Event): T => JSON.parse((event as MessageEvent<string>).data) as T
+const parse = <T>(event: Event): T => {
+  const data = JSON.parse((event as MessageEvent<string>).data) as T;
+  console.log('API Data received:', data);
+  return data;
+}
 
 export const watchDevices = (
   url: string,

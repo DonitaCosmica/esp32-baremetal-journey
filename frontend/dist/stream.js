@@ -1,13 +1,13 @@
-export const watchDevice = (url, onState, onError) => {
+const parse = (event) => {
+    const data = JSON.parse(event.data);
+    console.log('API Data received:', data); // <--- AQUÍ
+    return data;
+};
+export const watchDevices = (url, onSnapshot, onDevice, onConnection) => {
     const source = new EventSource(url);
-    source.onmessage = (event) => {
-        try {
-            onState(JSON.parse(event.data));
-        }
-        catch {
-            console.error('Evento inválido:', event.data);
-        }
-    };
-    source.onerror = onError;
+    source.onopen = () => onConnection(true);
+    source.onerror = () => onConnection(false);
+    source.addEventListener('snapshot', (event) => onSnapshot(parse(event)));
+    source.addEventListener('device', (event) => onDevice(parse(event)));
     return () => source.close();
 };

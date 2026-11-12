@@ -3,12 +3,25 @@
 #include "cJSON.h"
 #include "esp_system.h"
 #include "esp_timer.h"
+#include "esp_log.h"
+#include "esp_heap_caps.h"
 #include "gw_config.h"
 #include "metrics.h"
 #include "net.h"
 #include "nodes.h"
 #include "proto.h"
 #include "telemetry.h"
+
+static const char *TAG = "telemetry";
+
+static void log_heap(void) {
+  ESP_LOGI(TAG, "heap libre=%u min=%u interna=%u bloque_max=%u",
+    (unsigned)esp_get_free_heap_size(),
+    (unsigned)esp_get_minimum_free_heap_size(),
+    (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+    (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL)
+  );
+}
 
 static double round_to(float value, int decimals) {
   double p = 1;
@@ -37,14 +50,17 @@ static cJSON *new_root(cJSON *g[3]) {
 }
 
 static void publish(const char *device, cJSON *root) {
-  char *str = cJSON_PrintUnformatted(root);
+  if(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) >= 20000) {
+    char *str = cJSON_PrintUnformatted(root);
 
-  if(str) {
-    net_publish(device, "telemetry", str, 1, true);
-    cJSON_free(str);
+    if(str) {
+      net_publish(device, "telemetry", str, 0, true);
+      cJSON_free(str);
+    }
   }
-}
 
+  cJSON_Delete(root);
+}
 void telemetry_from_node(const uint8_t *frame, size_t len, int8_t rssi) {
   proto_hdr_t hdr;
   if(!proto_parse(frame, len, &hdr)) return;
@@ -67,6 +83,8 @@ void telemetry_from_node(const uint8_t *frame, size_t len, int8_t rssi) {
 }
 
 void telemetry_from_gateway(uint32_t led_on) {
+  log_heap();
+
   net_info_t net_info;
   net_get_info(&net_info);
 
