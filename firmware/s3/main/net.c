@@ -18,7 +18,7 @@ static volatile bool mqtt_ok = false;
 static volatile bool mqtt_started = false;
 static esp_netif_t *sta_netif;
 static char lwt_topic[128];
-static int retry_ms = 1000;
+static int retry_ms = 3000;
 
 static void on_wifi(void *arg, esp_event_base_t base, int32_t id, void *data) {
   if(base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
@@ -28,7 +28,7 @@ static void on_wifi(void *arg, esp_event_base_t base, int32_t id, void *data) {
     ESP_LOGW(TAG, "Wi-Fi desconectado, motivo=%d", d->reason);
     esp_wifi_connect();
   } else if(base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
-    retry_ms = 1000;
+    retry_ms = 3000;
     ip_event_got_ip_t *e = (ip_event_got_ip_t *)data;
     ESP_LOGI(TAG, "IP asignada: " IPSTR, IP2STR(&e->ip_info.ip));
     if(!mqtt_started) {

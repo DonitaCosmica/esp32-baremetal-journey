@@ -1,6 +1,6 @@
 const parse = (event) => {
     const data = JSON.parse(event.data);
-    console.log('API Data received:', data); // <--- AQUÍ
+    console.log('API Data received:', data);
     return data;
 };
 export const watchDevices = (url, onSnapshot, onDevice, onConnection) => {

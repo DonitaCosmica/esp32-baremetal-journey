@@ -9,16 +9,26 @@ typedef enum { ST_OK = 0, ST_WARNING = 1, ST_FAULT = 2 } status_t;
   X( 1, M_PH,               "ph",                             GRP_METRICS,  KIND_NUM,     2) \
   X( 2, M_TURBIDITY_NTU,    "turbidity_ntu",                  GRP_METRICS,  KIND_NUM,     2) \
   X( 3, M_CHLORINE_MG_L,    "chlorine_mg_l",                  GRP_METRICS,  KIND_NUM,     2) \
-  X( 4, M_FLOW_LPS,         "flow_lps",                       GRP_METRICS,  KIND_NUM,     1) \
+  X( 4, M_FLOW_LPM,         "flow_lpm",                       GRP_METRICS,  KIND_NUM,     2) \
   X( 5, M_OBJECT_DETECTED,  "object_detected",                GRP_METRICS,  KIND_NUM,     0) \
   X( 6, M_WATER_TEMP_C,     "water_temp_c",                   GRP_METRICS,  KIND_NUM,     1) \
-  X( 7, M_CONDUCTIVITY_TDS, "conductivity_tds",               GRP_METRICS,  KIND_NUM,     2) \
+  X( 7, M_CONDUCTIVITY_TDS, "conductivity_tds",               GRP_METRICS,  KIND_NUM,     0) \
+  X( 8, M_FLOW_TOTAL_L,     "flow_total_l",                   GRP_METRICS,  KIND_NUM,     3) \
+  X( 9, M_AIR_TEMP_C,       "air_temp_c",                     GRP_METRICS,  KIND_NUM,     1) \
+  X(10, M_AIR_HUMIDITY_PCT, "air_humidity_pct",               GRP_METRICS,  KIND_NUM,     0) \
+  X(11, M_GAS_PPM,          "gas_ppm_co2eq",                  GRP_METRICS,  KIND_NUM,     0) \
   X(20, M_PH_ELECTRODE_MV,  "ph_electrode_mv",                GRP_HEALTH,   KIND_NUM,     1) \
   X(21, M_PH_STATUS,        "ph_status",                      GRP_HEALTH,   KIND_STATUS,  0) \
   X(22, M_TURB_LENS_PCT,    "turbidity_lens_cleanliness_pct", GRP_HEALTH,   KIND_NUM,     1) \
   X(23, M_TURB_STATUS,      "turbidity_status",               GRP_HEALTH,   KIND_STATUS,  0) \
   X(24, M_DAYS_SINCE_CAL,   "days_since_last_calibration",    GRP_HEALTH,   KIND_NUM,     0) \
   X(25, M_INTERNAL_TEMP_C,  "internal_temp_c",                GRP_HEALTH,   KIND_NUM,     1) \
+  X(26, M_TURB_VOLTAGE_MV,  "turbidity_voltage_mv",           GRP_HEALTH,   KIND_NUM,     0) \
+  X(27, M_TDS_VOLTAGE_MV,   "tds_voltage_mv",                 GRP_HEALTH,   KIND_NUM,     0) \
+  X(28, M_TDS_STATUS,       "tds_status",                     GRP_HEALTH,   KIND_STATUS,  0) \
+  X(29, M_DHT_STATUS,       "air_sensor_status",              GRP_HEALTH,   KIND_STATUS,  0) \
+  X(30, M_GAS_VOLTAGE_MV,   "gas_voltage_mv",                 GRP_HEALTH,   KIND_NUM,     0) \
+  X(31, M_GAS_STATUS,       "gas_status",                     GRP_HEALTH,   KIND_STATUS,  0) \
   X(40, M_BATTERY_V,        "battery_v",                      GRP_DIAG,     KIND_NUM,     2) \
   X(41, M_FREE_HEAP_BYTES,  "free_heap_bytes",                GRP_DIAG,     KIND_NUM,     0) \
   X(42, M_UPTIME_S,         "uptime_s",                       GRP_DIAG,     KIND_NUM,     0) \
