@@ -11,8 +11,16 @@
 #include "nodes.h"
 #include "proto.h"
 #include "telemetry.h"
+#include "maint.h"
 
 static const char *TAG = "telemetry";
+
+static const struct { uint8_t id; const char *key; } MAINT[] = {
+  { M_DAYS_SINCE_CAL, "ph" },
+  { M_TURB_DAYS_CLEAN, "turb" },
+  { M_TDS_DAYS_CAL, "tds" },
+  { M_GAS_DAYS_CAL, "gas" },
+};
 
 static void log_heap(void) {
   ESP_LOGI(TAG, "heap libre=%u min=%u interna=%u bloque_max=%u",
@@ -61,6 +69,7 @@ static void publish(const char *device, cJSON *root) {
 
   cJSON_Delete(root);
 }
+
 void telemetry_from_node(const uint8_t *frame, size_t len, int8_t rssi) {
   proto_hdr_t hdr;
   if(!proto_parse(frame, len, &hdr)) return;
@@ -76,13 +85,17 @@ void telemetry_from_node(const uint8_t *frame, size_t len, int8_t rssi) {
   }
 
   add_entry(g, M_RSSI_DBM, rssi);
+  for(size_t i = 0; i < sizeof MAINT / sizeof MAINT[0]; ++i) {
+    float days = maint_days(hdr.node_id, MAINT[i].key);
+    if(!isnan(days)) add_entry(g, MAINT[i].id, days);
+  }
 
   char dev[24];
   node_device_id(dev, sizeof dev, hdr.node_id);
   publish(dev, root);
 }
 
-void telemetry_from_gateway(uint32_t led_on) {
+void telemetry_from_gateway(void) {
   log_heap();
 
   net_info_t net_info;
@@ -91,7 +104,6 @@ void telemetry_from_gateway(uint32_t led_on) {
   cJSON *g[3];
   cJSON *root = new_root(g);
 
-  add_entry(g, M_LED, (float)led_on);
   add_entry(g, M_RSSI_DBM, net_info.rssi);
   add_entry(g, M_FREE_HEAP_BYTES, (float)esp_get_free_heap_size());
   add_entry(g, M_UPTIME_S, (float)(esp_timer_get_time() / 1000000));

@@ -28,6 +28,9 @@ void app_main(void) {
   send_frame();
 
   while(1) {
+    proto_cmd_t cmd;
+    if(tx_poll_cmd(&cmd) && cmd.cmd == CMD_LED) sensors_set_led(cmd.arg != 0);
+
     int64_t now = esp_timer_get_time();
     bool urgent = sensors_poll(now);
     int64_t since = now - t_tx;

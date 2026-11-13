@@ -2,6 +2,7 @@
 #include "esp_log.h"
 #include "esp_now.h"
 #include "esp_timer.h"
+#include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
@@ -82,4 +83,28 @@ void link_start(void) {
   xTaskCreate(link_task, "link", 6144, NULL, 5, NULL);
   ESP_ERROR_CHECK(esp_now_init());
   ESP_ERROR_CHECK(esp_now_register_recv_cb(on_recv));
+}
+
+bool link_send_cmd(uint8_t node_id, uint8_t cmd, uint8_t arg) {
+  node_t t[MAX_NODES];
+  size_t n = nodes_snapshot(t, MAX_NODES);
+  const node_t *node = NULL;
+
+  for(size_t i = 0; i < n; ++i) {
+    if(t[i].node_id == node_id) node = &t[i];
+  }
+  if(!node || !node->online) return false;
+
+  if(!esp_now_is_peer_exist(node->mac)) {
+    esp_now_peer_info_t peer = { 0 };
+    memcpy(peer.peer_addr, node->mac, 6);
+    peer.channel = 0;
+    peer.ifidx = WIFI_IF_STA;
+    peer.encrypt = false;
+    if(esp_now_add_peer(&peer) != ESP_OK) return false;
+  }
+
+  proto_cmd_t c;
+  proto_cmd_build(&c, node_id, cmd, arg);
+  return esp_now_send(node->mac, (const uint8_t *)&c, sizeof c) == ESP_OK;
 }

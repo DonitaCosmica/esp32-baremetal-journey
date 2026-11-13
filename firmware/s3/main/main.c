@@ -6,9 +6,9 @@
 #include "button.h"
 #include "display.h"
 #include "gw_config.h"
-#include "led.h"
 #include "link.h"
 #include "net.h"
+#include "maint.h"
 #include "telemetry.h"
 #include "ui.h"
 
@@ -18,26 +18,21 @@
 void app_main(void) {
   display_init();
   net_start();
+  maint_init();
   link_start();
   ui_start();
 
-  led_t led;
   button_t btn;
-  led_init(&led, LED_PIN, true);
   button_init(&btn, BTN_PIN);
 
   uint64_t t_gw = 0;
 
   while(1) {
-    if(button_pressed(&btn)) {
-      led_toggle(&led);
-      telemetry_from_gateway(led_is_on(&led));
-      t_gw = esp_timer_get_time();
-    }
+    if(button_pressed(&btn)) ui_next_page();
 
     int64_t now = esp_timer_get_time();
     if(now - t_gw >= (int64_t)GW_REPORT_MS * 1000) {
-      telemetry_from_gateway(led_is_on(&led));
+      telemetry_from_gateway();
       t_gw = now;
     }
 

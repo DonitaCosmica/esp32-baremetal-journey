@@ -29,6 +29,9 @@ typedef enum { ST_OK = 0, ST_WARNING = 1, ST_FAULT = 2 } status_t;
   X(29, M_DHT_STATUS,       "air_sensor_status",              GRP_HEALTH,   KIND_STATUS,  0) \
   X(30, M_GAS_VOLTAGE_MV,   "gas_voltage_mv",                 GRP_HEALTH,   KIND_NUM,     0) \
   X(31, M_GAS_STATUS,       "gas_status",                     GRP_HEALTH,   KIND_STATUS,  0) \
+  X(32, M_TURB_DAYS_CLEAN,  "turbidity_days_since_cleaning",  GRP_HEALTH,   KIND_NUM,     0) \
+  X(33, M_TDS_DAYS_CAL,     "tds_days_since_calibration",     GRP_HEALTH,   KIND_NUM,     0) \
+  X(34, M_GAS_DAYS_CAL,     "gas_days_since_calibration",     GRP_HEALTH,   KIND_NUM,     0) \
   X(40, M_BATTERY_V,        "battery_v",                      GRP_DIAG,     KIND_NUM,     2) \
   X(41, M_FREE_HEAP_BYTES,  "free_heap_bytes",                GRP_DIAG,     KIND_NUM,     0) \
   X(42, M_UPTIME_S,         "uptime_s",                       GRP_DIAG,     KIND_NUM,     0) \

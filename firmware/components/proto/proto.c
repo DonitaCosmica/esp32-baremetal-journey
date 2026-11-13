@@ -17,6 +17,10 @@ bool proto_add(proto_frame_t *frame, uint8_t id, float value) {
   return true;
 }
 
+void proto_cmd_build(proto_cmd_t *c, uint8_t node_id, uint8_t cmd, uint8_t arg) {
+  *c = (proto_cmd_t){ PROTO_CMD_MAGIC, PROTO_VERSION, node_id, cmd, arg };
+}
+
 bool proto_parse(const uint8_t *data, size_t len, proto_hdr_t *hdr) {
   if(len < sizeof *hdr) return false;
 
@@ -29,4 +33,10 @@ void proto_get(const uint8_t *data, size_t i, uint8_t *id, float *value) {
   const uint8_t *p = data + sizeof(proto_hdr_t) + i * sizeof(proto_entry_t);
   *id = p[0];
   memcpy(value, p + 1, sizeof *value);
+}
+
+bool proto_cmd_parse(const uint8_t *data, size_t len, proto_cmd_t *c) {
+  if(len != sizeof *c) return false;
+  memcpy(c, data, sizeof *c);
+  return c->magic == PROTO_CMD_MAGIC && c->version == PROTO_VERSION;
 }
