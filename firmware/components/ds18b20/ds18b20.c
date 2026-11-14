@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "driver/gpio.h"
+#include "esp_log.h"
 #include "esp_rom_sys.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -9,6 +10,8 @@
 
 #define CONV_US 750000
 #define MAX_ERRS 3
+
+static const char *TAG = "ds18b20";
 
 static inline void bus_low(ds18b20_t *sensor) {
   gpio_set_level(sensor->pin, 0);
@@ -18,7 +21,7 @@ static inline void bus_release(ds18b20_t *sensor) {
   gpio_set_level(sensor->pin, 1);
 }
 
-static inline int  bus_read(ds18b20_t *sensor) {
+static inline int bus_read(ds18b20_t *sensor) {
   return gpio_get_level(sensor->pin);
 }
 
@@ -62,17 +65,17 @@ static void ow_write(ds18b20_t *sensor, uint8_t b) {
 }
 
 static uint8_t ow_read(ds18b20_t *sensor) {
-  uint8_t bit = 0;
-  for(int i = 0; i < 8; ++i) bit |= (uint8_t)(ow_read_bit(sensor) << i);
-  return bit;
+  uint8_t byte = 0;
+  for(int i = 0; i < 8; ++i) byte |= (uint8_t)(ow_read_bit(sensor) << i);
+  return byte;
 }
 
 static uint8_t crc8(const uint8_t *d, size_t n) {
   uint8_t crc = 0;
   while(n--) {
-    uint8_t bit = *d++;
-    for(int i = 0; i < 8; ++i, bit >>= 1) {
-      uint8_t mix = (crc ^ bit) & 1;
+    uint8_t byte = *d++;
+    for(int i = 0; i < 8; ++i, byte >>= 1) {
+      uint8_t mix = (crc ^ byte) & 1;
       crc >>= 1;
       if(mix) crc ^= 0x8C;
     }
@@ -92,12 +95,25 @@ static bool read_scratchpad(ds18b20_t *sensor, uint8_t sp[9]) {
   ow_write(sensor, 0xCC);
   ow_write(sensor, 0xBE);
   for(int i = 0; i < 9; ++i) sp[i] = ow_read(sensor);
-  return crc8(sp, 9) == 0;
+
+  if(crc8(sp, 9) != 0) {
+    ESP_LOGW(TAG, "CRC inválido en GPIO%d (ruido o pull-up débil)", sensor->pin);
+    return false;
+  }
+  return true;
 }
 
 static void fail(ds18b20_t *sensor) {
   if(sensor->errs < MAX_ERRS) sensor->errs++;
-  if(sensor->errs >= MAX_ERRS) sensor->last = NAN;
+
+  if(sensor->errs == 1) {
+    ESP_LOGW(TAG, "sin respuesta en GPIO%d (revisa pull-up y cableado)", sensor->pin);
+  }
+
+  if(sensor->errs == MAX_ERRS) {
+    ESP_LOGE(TAG, "%d fallos seguidos en GPIO%d: sin lectura de temperatura", MAX_ERRS, sensor->pin);
+    sensor->last = NAN;
+  }
 }
 
 void ds18b20_init(ds18b20_t *sensor, int pin) {
@@ -115,6 +131,7 @@ void ds18b20_init(ds18b20_t *sensor, int pin) {
   };
   ESP_ERROR_CHECK(gpio_config(&cfg));
   bus_release(sensor);
+  ESP_LOGI(TAG, "iniciado en GPIO%d", pin);
 }
 
 float ds18b20_read(ds18b20_t *sensor) {
